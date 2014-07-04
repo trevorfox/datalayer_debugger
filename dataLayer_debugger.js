@@ -31,7 +31,7 @@
       // time starts when GTM rule is fired or bookmarklet click
 
       "startTime" : new Date(),
-
+      
       // to hold array of callback functions to call inside new .push method
 
       "callbacks" : [],
@@ -60,10 +60,17 @@
 
     dldb.state = function () {
 
-        var state = window.dataLayer_debugger.keepState ? "On" : "Off";
-        
-        return state
+      var state = window.dataLayer_debugger.keepState ? "On" : "Off";
+
+      return state;
     };
+
+    dldb.dataLayer = function () {
+
+      window.dataLayer_debugger.debugPush(window.dataLayer_dubugger.current);
+
+      return dldb.current;
+    }
 
     // Validates an object against an array mandatory valid key
     // and a second optional array of optional keys.
@@ -72,60 +79,61 @@
     dldb.validate = function (testObj, validKeys, optKeys, objType) {
 
       var checked,
-	  validKey,
-	  optKey,
+      validKey,
+      optKey,
       checkedKeys = [],
       type = arguments[arguments.length],
       checks = validKeys.length > optKeys.length ? validKeys : optKeys;
 
 
-        for (var j = 0; j < checks; j++) {
+      for (var j = 0; j < checks; j++) {
 
-          validKey = validKeys[j];
+        validKey = validKeys[j];
 
-          if (testObj[validKey]){
+        if (testObj[validKey]){
 
-            checked = validKeys.splice(j,1);
+          checked = validKeys.splice(j,1);
 
-            checkedKeys.push(checked);
-          } 
-          
-          else if (optKeys && testObj[optKey]) {
-
-            optKey = optKey[j];
-
-            checked = optKeys.splice(j,1);
-
-            checkedKeys.push(checked);
-
-            if (optKey === "transactionProducts" ) {
-
-              var products = testObj.transactionProducts;
-
-              for (var p = 0; p < products.length; p++) {
-
-              	var product = products[p];
-
-              	window.dataLayer_debugger.validate(product, ["name","sku","price","quantity"],  "product");
-
-              }
-           }
+          checkedKeys.push(checked);
         }
 
+        else if (optKeys && testObj[optKey]) {
 
-        if (validKeys.length) {
+          optKey = optKey[j];
 
-          console.log("Invalid " + (type ? type + " " : "") + "object pushed to dataLayer. Missing: " + validKeys.join(", "));
+          checked = optKeys.splice(j,1);
 
-          return false;
+          checkedKeys.push(checked);
 
-        } else if (optKeys.length) {
+          if (optKey === "transactionProducts" ) {
 
-          console.log("Valid " + (type ? type + " " : "") + "object pushed to dataLayer. Optional keys not used: " + validKeys.join(", "));
+            var products = testObj.transactionProducts;
+
+            for (var p = 0; p < products.length; p++) {
+
+              var product = products[p];
+
+              window.dataLayer_debugger.validate(product, ["name","sku","price","quantity"],  "product");
+
+            }
+          }
         }
+      }
 
-        return true;
+      if (validKeys.length) {
+
+        console.log("Invalid " + (type ? type + " " : "") + "object pushed to dataLayer. Missing: " + validKeys.join(", "));
+
+        return false;
+
+      } else if (optKeys.length) {
+
+        console.log("Valid " + (type ? type + " " : "") + "object pushed to dataLayer. Optional keys not used: " + validKeys.join(", "));
+      }
+
+      return true;
     };
+
 
     // Turns the debugger on by changing the keepState variable,
     // changes the dataLayer.push method to add debugging functionality
@@ -144,123 +152,7 @@
       // calls (applys) all the functions in the dldb.callbacks array,
       // calls the original dataLayer.push methon on all function arguments.
 
-      window.dataLayer.push = function () {
-
-        for (var a = 0; a < arguments.length; a++) {
-
-          var obj = arguments[a],
-              ks = Object.keys(obj).sort();
-
-
-			//window.dataLayer_debugger.validate(['transactionTotal','transactionId'], obj, "transaction");
-            //window.dataLayer_debugger.validate( ['network','socialAction'], obj, "social");
-
-			// Check for "event" property.
-              // Put "event" property of pushed object first in list.	
-              
-              for (var v = 0; v < ks.length; v++){
-
-                if (ks[v] === 'event'){
-
-                  ks.unshift(ks.splice(v,1)[0]);
-                }
-              }
-
-
-        try {
-
-            dldb.pushCount += 1;
-
-            console.group( 'dataLayer.push: #' + dldb.pushCount + ", Time: " + window.dataLayer_debugger.now());
-
-            for (var i = 0; i< ks.length; i++) {
-
-              var key = ks[i],
-                val = obj[key],
-                space = 25 - key.length;
-
-              window.dataLayer_debugger[key] = val;
-
-              // validate transaction pushes, break if fail
-
-              if (key.match(/^transaction(Id|Total|Affiliation|Shipping|Tax|Products)$/)){
-
-                if (!window.dataLayer_debugger.validate(obj, ['transactionTotal','transactionId'], ['transactionAffiliation', 'transactionShipping', 'transactionTax', 'transactionProducts'], "transaction") ) {
-
-                  break;
-                }
-              }
-
-              // validate social pushes, break if fail
-
-              if (key.match(/^(network|socialAction|opt_(target|pagePath))$/)){
-
-                if (!window.dataLayer_debugger.validate(obj, ['network','socialAction'],[], "social") ) {
-
-                  break;
-                }
-              }
-
-              var logMessage = key + new Array(space).join(' ') + ': ';
-
-              if (window.dataLayer_debugger.coolConsole) {
-
-                var valType = (typeof(val) === 'object') ? '%O' : '%s';
-
-                console.log( logMessage + valType, val);
-
-            } else {
-
-                console.log( logMessage + (typeof(val) !== 'object' ? val : "") );
-
-                if (typeof(val) === 'object') {
-
-                  console.dir(val);
-
-              }
-            }
-          }
-        }
-        catch (e) {
-
-          console.log("dataLayer error: " + e.message);
-
-          if (window.dataLayer_debugger.coolConsole) {
-
-            console.log("pushed object was %O", obj);
-
-        } else {
-
-            console.log( "pushed object was:" );
-            console.dir(val);
-
-          }
-
-        }
-
-          console.groupEnd();
-          console.dir(window.dataLayer);
-
-          // Call all callbacks within the context of the pushed object.
-
-          if (window.dataLayer_debugger.callbacks){
-
-            var callbacks = window.dataLayer_debugger.callbacks;
-
-            for (var j = 0; j < callbacks.length; j++) {
-
-              var callback = callbacks[j];
-
-              callback.apply(obj);
-
-          }
-        }
-
-          // Calls original cached version of dataLayer.push.
-
-          dldb.dotPush(obj);
-        }
-      };
+      window.dataLayer.push = dldb.logPush()
     };
 
     // Turns debugger off,
@@ -277,8 +169,8 @@
       console.log("Current time is: " + window.dataLayer_debugger.now());
     };
 
-      // Set one or many callback functions
-      // to the debugging version of dataLayer.push method.
+    // Set one or many callback functions
+    // to the debugging version of dataLayer.push method.
 
     dldb.setCallback = function (callback){
 
@@ -299,15 +191,15 @@
 
           dldb.startTime = new Date();
 
-      }  if (arg === "count") {
+        }  if (arg === "count") {
 
           dldb.pushCount = 0;
 
-      } else if (arg === "callbacks") {
+        } else if (arg === "callbacks") {
 
           dldb.callbacks = [];
 
-      } else {
+        } else {
 
           dldb.startTime = new Date();
           dldb.pushCount = 0;
@@ -316,6 +208,126 @@
         }
       }
     };
+
+    dldb.logPush = function () {
+
+      for (var a = 0; a < arguments.length; a++) {
+
+        var obj = arguments[a],
+        ks = Object.keys(obj).sort();
+
+
+        //window.dataLayer_debugger.validate(['transactionTotal','transactionId'], obj, "transaction");
+        //window.dataLayer_debugger.validate( ['network','socialAction'], obj, "social");
+
+        // Check for "event" property.
+        // Put "event" property of pushed object first in list.
+
+        for (var v = 0; v < ks.length; v++){
+
+          if (ks[v] === 'event'){
+
+            ks.unshift(ks.splice(v,1)[0]);
+          }
+        }
+
+
+        try {
+
+          dldb.pushCount += 1;
+
+          console.group( 'dataLayer.push: #' + dldb.pushCount + ", Time: " + window.dataLayer_debugger.now());
+
+          for (var i = 0; i< ks.length; i++) {
+
+            var key = ks[i],
+            val = obj[key],
+            space = 25 - key.length;
+
+            // validate transaction pushes, break if fail
+
+            if (key.match(/^transaction(Id|Total|Affiliation|Shipping|Tax|Products)$/)){
+
+              if (!window.dataLayer_debugger.validate(obj, ['transactionTotal','transactionId'], ['transactionAffiliation', 'transactionShipping', 'transactionTax', 'transactionProducts'], "transaction") ) {
+
+                break;
+              }
+            }
+
+            // validate social pushes, break if fail
+
+            if (key.match(/^(network|socialAction|opt_(target|pagePath))$/)){
+
+              if (!window.dataLayer_debugger.validate(obj, ['network','socialAction'],[], "social") ) {
+
+                break;
+              }
+            }
+
+            var logMessage = key + new Array(space).join(' ') + ': ';
+
+            if (window.dataLayer_debugger.coolConsole) {
+
+              var valType = (typeof(val) === 'object') ? '%O' : '%s';
+
+              console.log( logMessage + valType, val);
+
+            } else {
+
+              console.log( logMessage + (typeof(val) !== 'object' ? val : "") );
+
+              if (typeof(val) === 'object') {
+
+                console.dir(val);
+
+              }
+            }
+          }
+        }
+        catch (e) {
+
+          console.log("dataLayer error: " + e.message);
+
+          if (window.dataLayer_debugger.coolConsole) {
+
+            console.log("pushed object was %O", obj);
+
+          } else {
+
+            console.log( "pushed object was:" );
+            console.dir(val);
+          }
+        }
+
+        console.groupEnd();
+        console.dir(window.dataLayer);
+
+
+        // Set the new value of current
+
+        dldb.current[key] = val;
+
+        // Call all callbacks within the context of the pushed object.
+
+        if (window.dataLayer_debugger.callbacks){
+
+          var callbacks = window.dataLayer_debugger.callbacks;
+
+          for (var j = 0; j < callbacks.length; j++) {
+
+            var callback = callbacks[j];
+
+            callback.apply(obj);
+
+          }
+        }
+
+        // Calls original cached version of dataLayer.push.
+
+        dldb.dotPush(obj);
+      }
+    };
+
 
     window.dataLayer_debugger = dldb;
 
