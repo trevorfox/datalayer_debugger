@@ -38,7 +38,12 @@
 
       // Does this debugger off cool logging features?
 
-      "coolConsole" : navigator.userAgent.toLowerCase().match(/chrome|firefox/) ? true : false
+      "coolConsole" : navigator.userAgent.toLowerCase().match(/chrome|firefox/) ? true : false,
+
+      // An object that holds all the current dataLayer values
+
+      "current" : {}
+
     };
 
     // Returns time elapsed from startTime.
@@ -55,56 +60,66 @@
 
     dldb.state = function () {
 
-        return (window.dataLayer_debugger.keepState ? "On" : "Off");
-      };
+        var state = window.dataLayer_debugger.keepState ? "On" : "Off";
+        
+        return state
+    };
 
-    //
+    // Validates an object against an array mandatory valid key
+    // and a second optional array of optional keys.
+    // The last argument is the is a string name of the type of objec. ie 'social'
 
-    dldb.validate = function (testObj, validKeys, optKeys, type) {
+    dldb.validate = function (testObj, validKeys, optKeys, objType) {
 
       var checked,
+	  validKey,
+	  optKey,
       checkedKeys = [],
+      type = arguments[arguments.length],
       checks = validKeys.length > optKeys.length ? validKeys : optKeys;
 
+
         for (var j = 0; j < checks; j++) {
-          var validKey = validKeys[j],
-            optKey = optKey[j];
+
+          validKey = validKeys[j];
 
           if (testObj[validKey]){
 
             checked = validKeys.splice(j,1);
 
             checkedKeys.push(checked);
+          } 
+          
+          else if (optKeys && testObj[optKey]) {
 
-            if (validKey === "transactionProducts" ) {
+            optKey = optKey[j];
+
+            checked = optKeys.splice(j,1);
+
+            checkedKeys.push(checked);
+
+            if (optKey === "transactionProducts" ) {
 
               var products = testObj.transactionProducts;
 
               for (var p = 0; p < products.length; p++) {
 
-              var product = products[p];
+              	var product = products[p];
 
-              window.dataLayer_debugger.validate(product, ["name","sku","price","quantity"],  "product");
+              	window.dataLayer_debugger.validate(product, ["name","sku","price","quantity"],  "product");
 
               }
-            }
-
-          } else if (testObj[optKey]) {
-
-            checked = optKeys.splice(j,1);
-
-            checkedKeys.push(checked);
-          }
+           }
         }
 
 
-        if (validKeys.length){
+        if (validKeys.length) {
 
           console.log("Invalid " + (type ? type + " " : "") + "object pushed to dataLayer. Missing: " + validKeys.join(", "));
 
           return false;
 
-        } else if (optKeys.length){
+        } else if (optKeys.length) {
 
           console.log("Valid " + (type ? type + " " : "") + "object pushed to dataLayer. Optional keys not used: " + validKeys.join(", "));
         }
@@ -136,13 +151,13 @@
           var obj = arguments[a],
               ks = Object.keys(obj).sort();
 
-              // Check for "event" property.
-              // Put "event" property of pushed object first in list.
 
-						window.dataLayer_debugger.validate(['transactionTotal','transactionId'], obj, "transaction");
+			//window.dataLayer_debugger.validate(['transactionTotal','transactionId'], obj, "transaction");
+            //window.dataLayer_debugger.validate( ['network','socialAction'], obj, "social");
 
-            window.dataLayer_debugger.validate( ['network','socialAction'], obj, "social");
-
+			// Check for "event" property.
+              // Put "event" property of pushed object first in list.	
+              
               for (var v = 0; v < ks.length; v++){
 
                 if (ks[v] === 'event'){
@@ -164,11 +179,13 @@
                 val = obj[key],
                 space = 25 - key.length;
 
+              window.dataLayer_debugger[key] = val;
+
               // validate transaction pushes, break if fail
 
               if (key.match(/^transaction(Id|Total|Affiliation|Shipping|Tax|Products)$/)){
 
-                if (!window.dataLayer_debugger.validate(['transactionTotal','transactionId'], obj, "transaction") ) {
+                if (!window.dataLayer_debugger.validate(obj, ['transactionTotal','transactionId'], ['transactionAffiliation', 'transactionShipping', 'transactionTax', 'transactionProducts'], "transaction") ) {
 
                   break;
                 }
@@ -178,7 +195,7 @@
 
               if (key.match(/^(network|socialAction|opt_(target|pagePath))$/)){
 
-                if (!window.dataLayer_debugger.validate( ['network','socialAction'], obj, "social") ) {
+                if (!window.dataLayer_debugger.validate(obj, ['network','socialAction'],[], "social") ) {
 
                   break;
                 }
@@ -207,8 +224,19 @@
         catch (e) {
 
           console.log("dataLayer error: " + e.message);
-          console.log("pushed object was %O", obj);
+
+          if (window.dataLayer_debugger.coolConsole) {
+
+            console.log("pushed object was %O", obj);
+
+        } else {
+
+            console.log( "pushed object was:" );
+            console.dir(val);
+
           }
+
+        }
 
           console.groupEnd();
           console.dir(window.dataLayer);
