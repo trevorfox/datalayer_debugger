@@ -1,5 +1,3 @@
-// console formating with "%" only works in Chrome/firefox... dang. fixed!
-
 (function (window) {
 
   'use strict'; // if you say so Mr. Crockford.
@@ -8,220 +6,204 @@
 
   if (window.dataLayer_debugger === undefined) {
 
-    // Instantiate the main dldb object. (later window.dataLayer_debugger)
+      // Set the value of the dataLayer_debugger variable
+      // to the return value of an immediately evoked function.
 
-    var dldb = {
+      window.dataLayer_debugger = (function(){
 
-      // Cache the dataLayer array.
+      // Instantiate the main dldb object to be returned as mentioned above
 
-      "dlCache" : window.dataLayer,
+      var dldb = {
 
-      // Cache the default dataLayer.push method.
+        // Cache the dataLayer array.
 
-      "dotPush" : window.dataLayer.push,
+        "dlCache" : window.dataLayer,
 
-      // Acts as the on/of switch for on,off methods or book marklet.
+        // Cache the default dataLayer.push method.
 
-      "keepState" : false,
+        "pushCache" : window.dataLayer.push,
 
-      // Counts how many pushes occur.
+        // Acts as the on/of switch for on,off methods or book marklet.
 
-      "pushCount" : window.dataLayer.length || 0,
+        "keepState" : false,
 
-      // time starts when GTM rule is fired or bookmarklet click
+        // Counts how many pushes occur.
 
-      "startTime" : new Date(),
-      
-      // to hold array of callback functions to call inside new .push method
+        "pushCount" : window.dataLayer.length || 0,
 
-      "callbacks" : [],
+        // time starts when GTM rule is fired or bookmarklet click
 
-      // Does this debugger off cool logging features?
+        "startTime" : new Date(),
 
-      "coolConsole" : navigator.userAgent.toLowerCase().match(/chrome|firefox/) ? true : false,
+        // to hold array of callback functions to call inside new .push method
 
-      // An object that holds all the current dataLayer values
+        "callbacks" : [],
 
-      "current" : {}
+        // Does this debugger off cool logging features?
 
-    };
+        "coolConsole" : navigator.userAgent.toLowerCase().match(/chrome|firefox/) ? true : false,
 
-    // Returns time elapsed from startTime.
-    // Used for timestamping dataLayer.push logs.
+        // An object that holds all the current dataLayer values
 
-    dldb.now = function () {
+        "current" : {}
 
-      var now =  (new Date() - dldb.startTime) / 1000;
+      };
 
-      return now;
-    };
+      // Append methods to dldb object:
 
-    // Returns whether the debugger is on or off.
+      // Returns time elapsed from startTime.
+      // Used for timestamping dataLayer.push logs.
 
-    dldb.state = function () {
+      dldb.now = function () {
 
-      var state = window.dataLayer_debugger.keepState ? "On" : "Off";
+        var now =  (new Date() - dldb.startTime) / 1000;
 
-      return state;
-    };
+        return now;
+      };
 
-    dldb.dataLayer = function () {
+      // Returns whether the debugger is on or off.
 
-      window.dataLayer_debugger.debugPush(window.dataLayer_dubugger.current);
+      dldb.state = function () {
 
-      return dldb.current;
-    }
+        var state = window.dataLayer_debugger.keepState ? "On" : "Off";
 
-    // Validates an object against an array mandatory valid key
-    // and a second optional array of optional keys.
-    // The last argument is the is a string name of the type of objec. ie 'social'
-
-    dldb.validate = function (testObj, validKeys, optKeys, objType) {
-
-      var checked,
-      validKey,
-      optKey,
-      checkedKeys = [],
-      type = arguments[arguments.length],
-      checks = validKeys.length > optKeys.length ? validKeys : optKeys;
+        return state;
+      };
 
 
-      for (var j = 0; j < checks; j++) {
+      // Turns the debugger on by changing the keepState variable,
+      // changes the dataLayer.push method to add debugging functionality
 
-        validKey = validKeys[j];
+      dldb.on = function () {
 
-        if (testObj[validKey]){
+        dldb.keepState = true;
+        window.dataLayer.push = window.dataLayer_debugger.push;
 
-          checked = validKeys.splice(j,1);
+        console.log ("The dataLayer debugger is On");
+        console.log ("Time is: " + window.dataLayer_debugger.now() + " To reset timer: dataLayer_debugger.reset('time')");
 
-          checkedKeys.push(checked);
-        }
+        for (var d = 0; d < window.dataLayer.length; d++){
 
-        else if (optKeys && testObj[optKey]) {
+          var obj = window.dataLayer[d],
+          keys = Object.keys(obj);
 
-          optKey = optKey[j];
+          for (var k = 0; k < keys.length; k++){
 
-          checked = optKeys.splice(j,1);
+            var key = keys[k],
+            val = obj[key];
 
-          checkedKeys.push(checked);
+            // Set the new value of current
 
-          if (optKey === "transactionProducts" ) {
-
-            var products = testObj.transactionProducts;
-
-            for (var p = 0; p < products.length; p++) {
-
-              var product = products[p];
-
-              window.dataLayer_debugger.validate(product, ["name","sku","price","quantity"],  "product");
-
-            }
+            dldb.current[key] = val;
           }
         }
-      }
 
-      if (validKeys.length) {
+        window.dataLayer_debugger.log(window.dataLayer_debugger.current,"current dataLayer");
 
-        console.log("Invalid " + (type ? type + " " : "") + "object pushed to dataLayer. Missing: " + validKeys.join(", "));
+      };
 
-        return false;
+      // Turns debugger off,
+      // changes dataLayer.push method back to normal.
 
-      } else if (optKeys.length) {
+      dldb.off = function () {
 
-        console.log("Valid " + (type ? type + " " : "") + "object pushed to dataLayer. Optional keys not used: " + validKeys.join(", "));
-      }
+        dldb.keepState = false;
 
-      return true;
-    };
+        window.dataLayer = dldb.dlCache;
+        window.dataLayer.push = dldb.pushCache;
 
+        console.log("The dataLayer debugger is " + window.dataLayer_debugger.state() + ".");
+        console.log("Current time is: " + window.dataLayer_debugger.now());
+      };
 
-    // Turns the debugger on by changing the keepState variable,
-    // changes the dataLayer.push method to add debugging functionality
+      // Set one or many callback functions
+      // to the debugging version of dataLayer.push method.
 
-    dldb.on = function () {
+      dldb.setCallback = function (callback){
 
-      dldb.keepState = true;
+        window.dataLayer_debugger.callbacks.push(callback);
+      };
 
-      console.log ("The dataLayer debugger is On");
+      // Resets the timer, counter, and/or callbacks depending on arguments.
+      // No arguments resets all- essentially the same as page refresh.
 
-      console.log ("Time is: " + window.dataLayer_debugger.now() + " To reset timer: dataLayer_debugger.reset('time')");
+      dldb.reset = function () {
 
-      console.dir (window.dataLayer);
+        for (var r = 0; r < arguments.length; r++){
+
+          var arg = arguments[r];
+
+          if (arg === "time") {
+
+            dldb.startTime = new Date();
+
+          }  if (arg === "count") {
+
+            dldb.pushCount = 0;
+
+          } else if (arg === "callbacks") {
+
+            dldb.callbacks = [];
+
+          } else {
+
+            dldb.startTime = new Date();
+            dldb.pushCount = 0;
+            dldb.callbacks = [];
+
+          }
+        }
+      };
 
       // Redefines the dataLayer.push method to add debugging functionality,
       // calls (applys) all the functions in the dldb.callbacks array,
       // calls the original dataLayer.push methon on all function arguments.
 
-      window.dataLayer.push = dldb.logPush()
-    };
+      dldb.push = function () {
 
-    // Turns debugger off,
-    // changes dataLayer.push method back to normal.
+        for (var a = 0; a < arguments.length; a++) {
 
-    dldb.off = function () {
+          var obj = arguments[a];
 
-      dldb.keepState = false;
 
-      window.dataLayer = dldb.dlCache;
-      window.dataLayer.push = dldb.dotPush;
+          dldb.pushCount += 1;
 
-      console.log("The dataLayer debugger is " + window.dataLayer_debugger.state() + ".");
-      console.log("Current time is: " + window.dataLayer_debugger.now());
-    };
+          console.group( 'dataLayer.push: #' + dldb.pushCount + ", Time: " + window.dataLayer_debugger.now());
 
-    // Set one or many callback functions
-    // to the debugging version of dataLayer.push method.
+          window.dataLayer_debugger.log(obj,window.dataLayer_debugger.pushCount);
 
-    dldb.setCallback = function (callback){
+          console.groupEnd();
+          console.dir(window.dataLayer);
 
-      window.dataLayer_debugger.callbacks.push(callback);
+          window.dataLayer_debugger.validate(obj, ['transactionTotal','transactionId'], ['transactionAffiliation', 'transactionShipping', 'transactionTax', 'transactionProducts'], "transaction");
+          window.dataLayer_debugger.validate(obj, ['network','socialAction'],[], "social");
 
-    };
+          // Call all callbacks within the context of the pushed object.
 
-    // Resets the timer, counter, and/or callbacks depending on arguments.
-    // No arguments resets all- essentially the same as page refresh.
+          if (window.dataLayer_debugger.callbacks){
 
-    dldb.reset = function () {
+            var callbacks = window.dataLayer_debugger.callbacks;
 
-      for (var r = 0; r < arguments.length; r++){
+            for (var j = 0; j < callbacks.length; j++) {
 
-        var arg = arguments[r];
+              var callback = callbacks[j];
 
-        if (arg === "time") {
+              callback.apply(obj);
 
-          dldb.startTime = new Date();
+            }
+          }
 
-        }  if (arg === "count") {
+          // Calls original cached version of dataLayer.push.
 
-          dldb.pushCount = 0;
-
-        } else if (arg === "callbacks") {
-
-          dldb.callbacks = [];
-
-        } else {
-
-          dldb.startTime = new Date();
-          dldb.pushCount = 0;
-          dldb.callbacks = [];
-
+          dldb.pushCache(obj);
         }
-      }
-    };
+      };
 
-    dldb.logPush = function () {
+      // Pretty-logs an object's contents.
 
-      for (var a = 0; a < arguments.length; a++) {
+      dldb.log = function (object, optName){
 
-        var obj = arguments[a],
-        ks = Object.keys(obj).sort();
-
-
-        //window.dataLayer_debugger.validate(['transactionTotal','transactionId'], obj, "transaction");
-        //window.dataLayer_debugger.validate( ['network','socialAction'], obj, "social");
-
-        // Check for "event" property.
-        // Put "event" property of pushed object first in list.
+        var ks = Object.keys(object).sort();
 
         for (var v = 0; v < ks.length; v++){
 
@@ -231,38 +213,19 @@
           }
         }
 
+        console.group("object: " + (optName || ""));
+
+        // Check for "event" property.
+        // Put "event" property of pushed object first in list.
 
         try {
-
-          dldb.pushCount += 1;
-
-          console.group( 'dataLayer.push: #' + dldb.pushCount + ", Time: " + window.dataLayer_debugger.now());
 
           for (var i = 0; i< ks.length; i++) {
 
             var key = ks[i],
-            val = obj[key],
+            val = object[key],
             space = 25 - key.length;
 
-            // validate transaction pushes, break if fail
-
-            if (key.match(/^transaction(Id|Total|Affiliation|Shipping|Tax|Products)$/)){
-
-              if (!window.dataLayer_debugger.validate(obj, ['transactionTotal','transactionId'], ['transactionAffiliation', 'transactionShipping', 'transactionTax', 'transactionProducts'], "transaction") ) {
-
-                break;
-              }
-            }
-
-            // validate social pushes, break if fail
-
-            if (key.match(/^(network|socialAction|opt_(target|pagePath))$/)){
-
-              if (!window.dataLayer_debugger.validate(obj, ['network','socialAction'],[], "social") ) {
-
-                break;
-              }
-            }
 
             var logMessage = key + new Array(space).join(' ') + ': ';
 
@@ -282,60 +245,97 @@
 
               }
             }
+
+            // Set the new value of current
+
+            dldb.current[key] = val;
           }
         }
+
         catch (e) {
 
           console.log("dataLayer error: " + e.message);
 
           if (window.dataLayer_debugger.coolConsole) {
 
-            console.log("pushed object was %O", obj);
+            console.log("object was %O", object);
 
           } else {
 
-            console.log( "pushed object was:" );
+            console.log( "object was:" );
             console.dir(val);
           }
         }
-
         console.groupEnd();
-        console.dir(window.dataLayer);
+      };
+
+      // Validates an object against an array mandatory valid key
+      // and a second optional array of optional keys.
+      // The last argument is the is a string name of the type of objec. ie 'social'
+
+      dldb.validate = function (testObj, validKeys, optKeys, type) {
+
+        var checked,
+        validKey,
+        optKey,
+        checkedKeys = [],
+        checks = validKeys.length > optKeys.length ? validKeys : optKeys;
 
 
-        // Set the new value of current
+        for (var j = 0; j < checks; j++) {
 
-        dldb.current[key] = val;
+          validKey = validKeys[j];
 
-        // Call all callbacks within the context of the pushed object.
+          if (testObj[validKey]){
 
-        if (window.dataLayer_debugger.callbacks){
+            checked = validKeys.splice(j,1);
 
-          var callbacks = window.dataLayer_debugger.callbacks;
+            checkedKeys.push(checked);
+          }
 
-          for (var j = 0; j < callbacks.length; j++) {
+          else if (optKeys && testObj[optKey]) {
 
-            var callback = callbacks[j];
+            optKey = optKey[j];
 
-            callback.apply(obj);
+            checked = optKeys.splice(j,1);
 
+            checkedKeys.push(checked);
+
+            if (optKey === "transactionProducts" ) {
+
+              var products = testObj.transactionProducts;
+
+              for (var p = 0; p < products.length; p++) {
+
+                var product = products[p];
+
+                window.dataLayer_debugger.validate(product, ["name","sku","price","quantity"],  "product");
+
+              }
+            }
           }
         }
 
-        // Calls original cached version of dataLayer.push.
+        if (validKeys.length) {
 
-        dldb.dotPush(obj);
-      }
-    };
+          console.log("Invalid " + (type ? type + " " : "") + "object pushed to dataLayer. Missing: " + validKeys.join(", "));
 
+          return false;
 
-    window.dataLayer_debugger = dldb;
+        } else if (optKeys.length) {
 
-    // In this case the dataLayer_debbugger does exist (after 1st run)
+          console.log("Valid " + (type ? type + " " : "") + "object pushed to dataLayer. Optional keys not used: " + validKeys.join(", "));
+        }
 
-  } else {
+        return true;
+      };
 
-    dldb = window.dataLayer_debugger;
+      // End method definitions and return the created object.
+
+      return dldb;
+
+    })();
+
   }
 
   // Logic responsible for turning dataLayer_debugger on/off.
@@ -344,7 +344,8 @@
 
     window.dataLayer_debugger.on();
 
-  } else {
+  }
+  else {
 
     window.dataLayer_debugger.off();
   }
