@@ -1,4 +1,4 @@
 datalayer_debugger
 ==================
 
-logs datalayer.push properties to the console like google analytics debugger
+logs google tag manager datalayer.push properties to the console like google analytics debugger
