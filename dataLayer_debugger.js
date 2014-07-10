@@ -45,7 +45,7 @@
 
         // An object that holds all the current dataLayer values
 
-        "current" : {}
+        "current" : google_tag_manager.dataLayer
 
       };
 
@@ -94,7 +94,7 @@
 
             // Set the new value of current
 
-            dldb.current[key] = val;
+            //dldb.current[key] = val;
           }
         }
 
